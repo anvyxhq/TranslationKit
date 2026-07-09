@@ -7,7 +7,7 @@
 
 import XCTest
 import Translation
-@testable import TranslationKit
+@testable import AnvyxTranslationKit
 
 // Compile-level smoke tests. Actual translation runs only on a physical device
 // (the Translation framework is unavailable in the Simulator), so these verify
