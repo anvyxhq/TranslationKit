@@ -6,8 +6,12 @@
 //
 
 import XCTest
+import Observation
 import Translation
 @testable import AnvyxTranslationKit
+
+/// Compile-time requirement: fails to build if `T` is not `@Observable`.
+private func requireObservable<T: Observable>(_ value: T) -> T { value }
 
 // Compile-level smoke tests. Actual translation runs only on a physical device
 // (the Translation framework is unavailable in the Simulator), so these verify
@@ -19,5 +23,10 @@ final class TranslationKitTests: XCTestCase {
         _ = Translator()
         _ = TranslationAvailability()
         _ = TranslationSession.Configuration(source: nil, target: Locale.Language(identifier: "vi"))
+    }
+
+    @MainActor
+    func testTranslatorIsObservable() {
+        _ = requireObservable(Translator())
     }
 }

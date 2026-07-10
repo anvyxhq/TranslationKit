@@ -21,7 +21,7 @@ public enum TranslationError: Error {
 /// call ``translate(_:from:to:)`` from anywhere with plain `async/await`:
 ///
 /// ```swift
-/// @StateObject private var translator = Translator()
+/// @State private var translator = Translator()
 ///
 /// var body: some View {
 ///     ContentView()
@@ -32,12 +32,15 @@ public enum TranslationError: Error {
 /// let vi = try await translator.translate(["Hello", "World"],
 ///                                         to: .init(identifier: "vi"))
 /// ```
+@Observable
 @MainActor
-public final class Translator: ObservableObject {
+public final class Translator {
 
-    @Published fileprivate var configuration: TranslationSession.Configuration?
-    private var pending: CheckedContinuation<[String], Error>?
-    private var queued: [String] = []
+    // Read by the host modifier's body, so it must stay observation-tracked.
+    fileprivate var configuration: TranslationSession.Configuration?
+    // Internal in-flight state — never read from a view, so exclude from tracking.
+    @ObservationIgnored private var pending: CheckedContinuation<[String], Error>?
+    @ObservationIgnored private var queued: [String] = []
 
     public init() {}
 
@@ -92,7 +95,7 @@ public final class Translator: ObservableObject {
 }
 
 private struct TranslationHostModifier: ViewModifier {
-    @ObservedObject var translator: Translator
+    let translator: Translator
 
     func body(content: Content) -> some View {
         content.translationTask(translator.configuration) { session in
