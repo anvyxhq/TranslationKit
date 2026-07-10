@@ -15,8 +15,6 @@ import Translation
 /// safe to call from anywhere.
 public struct TranslationAvailability {
 
-    private let availability = LanguageAvailability()
-
     public init() {}
 
     /// Support/installation status for translating `source` → `target`.
@@ -28,12 +26,20 @@ public struct TranslationAvailability {
         from source: Locale.Language,
         to target: Locale.Language
     ) async -> LanguageAvailability.Status {
-        await availability.status(from: source, to: target)
+        // `LanguageAvailability` is a non-`Sendable` stateless query object;
+        // create it locally so it stays in its own region and can cross into
+        // the framework's `nonisolated` async call.
+        await LanguageAvailability().status(from: source, to: target)
     }
 
     /// All languages the Translation framework can translate to/from.
+    ///
+    /// `@concurrent` so this runs on the generic executor — matching the
+    /// framework's `nonisolated` async getter, which won't accept a
+    /// non-`Sendable` receiver transferred from a caller-isolated context.
+    @concurrent
     public func supportedLanguages() async -> [Locale.Language] {
-        await availability.supportedLanguages
+        await LanguageAvailability().supportedLanguages
     }
 
     /// Convenience: is this pair usable at all (installed or downloadable)?

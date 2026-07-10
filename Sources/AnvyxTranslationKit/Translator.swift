@@ -75,7 +75,10 @@ public final class Translator: ObservableObject {
     }
 
     // Called by the host modifier when a session becomes available.
-    fileprivate func perform(with session: TranslationSession) async {
+    //
+    // `session` is `sending` so the non-`Sendable` value arrives in its own
+    // region and can cross into the framework's `@concurrent` batch call.
+    fileprivate func perform(with session: sending TranslationSession) async {
         guard let continuation = pending else { return }
         pending = nil
         let texts = queued

@@ -19,6 +19,11 @@ public extension TranslationSession {
     /// - Note: All strings are assumed to be in the session's source language;
     ///   the Translation framework does not allow mixed source languages in one
     ///   batch. Runs on-device and requires a physical device (not Simulator).
+    ///
+    /// `@concurrent` so this runs on the generic executor — matching the
+    /// framework's `nonisolated` `translations(from:)`, which won't accept the
+    /// non-`Sendable` session transferred from a caller-isolated context.
+    @concurrent
     func translate(_ texts: [String]) async throws -> [String] {
         guard !texts.isEmpty else { return [] }
 
@@ -38,6 +43,7 @@ public extension TranslationSession {
     }
 
     /// Convenience for translating a single string.
+    @concurrent
     func translate(_ text: String) async throws -> String {
         try await translate([text]).first ?? text
     }
