@@ -17,7 +17,7 @@ public enum TranslationError: Error {
 ///
 /// The framework only vends a `TranslationSession` through SwiftUI's
 /// `translationTask` modifier, so a host view must be attached once (typically
-/// near the app root) via ``SwiftUI/View/translationHost(_:)``. After that,
+/// near the app root) via `View.translationHost(_:)`. After that,
 /// call ``translate(_:from:to:)`` from anywhere with plain `async/await`:
 ///
 /// ```swift
