@@ -40,7 +40,12 @@ public final class Translator {
     fileprivate var configuration: TranslationSession.Configuration?
     // Internal in-flight state — never read from a view, so exclude from tracking.
     @ObservationIgnored private var pending: CheckedContinuation<[String], Error>?
-    @ObservationIgnored private var queued: [String] = []
+    @ObservationIgnored private var operation: Operation?
+
+    private enum Operation {
+        case translate([String])
+        case prepare              // download the offline model for the pair
+    }
 
     public init() {}
 
@@ -54,17 +59,7 @@ public final class Translator {
         from source: Locale.Language? = nil,
         to target: Locale.Language
     ) async throws -> [String] {
-        guard pending == nil else { throw TranslationError.busy }
-        queued = texts
-        return try await withCheckedThrowingContinuation { continuation in
-            pending = continuation
-            if let current = configuration, current.target == target, current.source == source {
-                // Same pair as last time — re-run the task with the same config.
-                configuration?.invalidate()
-            } else {
-                configuration = .init(source: source, target: target)
-            }
-        }
+        try await run(.translate(texts), from: source, to: target)
     }
 
     /// Convenience for a single string.
@@ -77,17 +72,48 @@ public final class Translator {
         try await translate([text], from: source, to: target).first ?? text
     }
 
+    /// Download the on-device model for a language pair (presenting the system's
+    /// download prompt if needed), so later translations run fully offline.
+    /// Check ``TranslationAvailability`` first to skip when already installed.
+    ///
+    /// - Throws: ``TranslationError/busy`` if a translation/prepare is in flight.
+    public func prepare(from source: Locale.Language? = nil, to target: Locale.Language) async throws {
+        _ = try await run(.prepare, from: source, to: target)
+    }
+
+    @discardableResult
+    private func run(_ operation: Operation,
+                     from source: Locale.Language?,
+                     to target: Locale.Language) async throws -> [String] {
+        guard pending == nil else { throw TranslationError.busy }
+        self.operation = operation
+        return try await withCheckedThrowingContinuation { continuation in
+            pending = continuation
+            if let current = configuration, current.target == target, current.source == source {
+                // Same pair as last time — re-run the task with the same config.
+                configuration?.invalidate()
+            } else {
+                configuration = .init(source: source, target: target)
+            }
+        }
+    }
+
     // Called by the host modifier when a session becomes available.
     //
     // `session` is `sending` so the non-`Sendable` value arrives in its own
     // region and can cross into the framework's `@concurrent` batch call.
     fileprivate func perform(with session: sending TranslationSession) async {
-        guard let continuation = pending else { return }
+        guard let continuation = pending, let operation else { return }
         pending = nil
-        let texts = queued
-        queued = []
+        self.operation = nil
         do {
-            continuation.resume(returning: try await session.translate(texts))
+            switch operation {
+            case .translate(let texts):
+                continuation.resume(returning: try await session.translate(texts))
+            case .prepare:
+                try await session.prepareTranslation()
+                continuation.resume(returning: [])
+            }
         } catch {
             continuation.resume(throwing: error)
         }
