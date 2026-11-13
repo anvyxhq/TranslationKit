@@ -47,6 +47,12 @@ public final class Translator {
         case prepare              // download the offline model for the pair
     }
 
+    /// When `true` (default), printf placeholders (`%@`, `%1$d`, …) are masked
+    /// before translating and restored afterwards (see ``PlaceholderMasking``);
+    /// a string whose placeholders do not survive is returned untranslated.
+    /// Set `false` to send texts to the engine as-is.
+    @ObservationIgnored public var protectsPlaceholders = true
+
     public init() {}
 
     /// Translate `texts` into `target` (optionally forcing `source`; `nil`
@@ -109,7 +115,8 @@ public final class Translator {
         do {
             switch operation {
             case .translate(let texts):
-                continuation.resume(returning: try await session.translate(texts))
+                let protect = protectsPlaceholders
+                continuation.resume(returning: try await session.translate(texts, protectingPlaceholders: protect))
             case .prepare:
                 try await session.prepareTranslation()
                 continuation.resume(returning: [])

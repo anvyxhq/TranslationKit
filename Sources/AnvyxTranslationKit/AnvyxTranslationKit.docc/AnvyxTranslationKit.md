@@ -20,3 +20,4 @@ let vi = try await translator.translate("Hello", to: .init(identifier: "vi"))
 
 - ``Translator``
 - ``TranslationAvailability``
+- ``PlaceholderMasking``
